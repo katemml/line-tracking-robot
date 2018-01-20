@@ -1,0 +1,246 @@
+//left motor
+int Left_motor_back=5;
+int Left_motor_go=6;
+//right motor
+int Right_motor_go=9;y
+int Right_motor_back=10;
+//runing indicator light
+int LEDRed = 11; 
+int LEDGreen = 12;
+int LEDBlue = 13;
+//start button
+int key=A0;
+int beep=A1;
+const int SensorRight = A2; //right sensor
+int SR;
+const int SensorLeft = A3; //left sensor
+int SL;
+int Distance = 0;
+int Echo = A5; 
+int Trig =A4;
+/*
+ * push to start with a higher speed
+ * initialized as 'starts with 0 speed'
+ */
+int breakToStart = 1; 
+//Set Inputs/Outputs
+void setup()
+{
+  //output
+  pinMode(Left_motor_go,OUTPUT);
+  pinMode(Left_motor_back,OUTPUT);
+  pinMode(Right_motor_go,OUTPUT);
+  pinMode(Right_motor_back,OUTPUT);
+  pinMode(LEDRed,OUTPUT);
+  pinMode(LEDGreen,OUTPUT);
+  pinMode(LEDBlue,OUTPUT);
+  pinMode(beep,OUTPUT);
+  //input
+  pinMode(key,INPUT);
+  pinMode(SensorRight, INPUT); 
+  pinMode(SensorLeft, INPUT); 
+  Serial.begin(9600); 
+  pinMode(Echo, INPUT); 
+  pinMode(Trig, OUTPUT);
+}
+//Method for running forward (constantly, both wheels move at speed 65 and Green LED on)
+//moves forward
+void run()
+{
+  digitalWrite(LEDGreen,HIGH);
+  //right motor goes forward
+  digitalWrite(Right_motor_go,HIGH);
+  digitalWrite(Right_motor_back,LOW);     
+  analogWrite(Right_motor_go,70);
+  //left motor goes forward
+  analogWrite(Right_motor_back,0);
+  digitalWrite(Left_motor_go,HIGH);
+  digitalWrite(Left_motor_back,LOW);
+  analogWrite(Left_motor_go,70);
+  analogWrite(Left_motor_back,0);
+  digitalWrite(LEDGreen,LOW);
+}
+//Method for running forward (initially, both wheels move at speed 125 for a short time and green LED on) 
+//'push start' (offset static friction)
+void start_run()
+{
+  digitalWrite(LEDGreen,HIGH);
+  analogWrite(LEDGreen,225);
+  //right motor goes forward
+  digitalWrite(Right_motor_go,HIGH); 
+  digitalWrite(Right_motor_back,LOW);     
+  analogWrite(Right_motor_go,115);
+  //left motor goes forward  
+  digitalWrite(Left_motor_go,HIGH);
+  digitalWrite(Left_motor_back,LOW);
+  analogWrite(Left_motor_go,115);
+  breakToStart=0; //not starts with 0 speed
+  digitalWrite(LEDGreen,LOW);
+  delayMicroseconds(100);
+}
+//Stop motors
+//brake
+void brake(){
+  digitalWrite(LEDRed,LOW);
+  digitalWrite(Left_motor_go,LOW);
+  digitalWrite(Left_motor_back,LOW);
+  digitalWrite(Right_motor_go,LOW);
+  digitalWrite(Right_motor_back,LOW);
+}
+//Method for left turn. (left motor -125, right motor 125 and blue LED on)
+//turn left
+void left()
+{
+  digitalWrite(LEDBlue,HIGH);
+  brake();
+  //right motor goes forward
+  digitalWrite(Right_motor_go,HIGH);
+  digitalWrite(Right_motor_back,LOW);
+  analogWrite(Right_motor_go,155); 
+  analogWrite(Right_motor_back,0);
+  //left motor goes backward
+  digitalWrite(Left_motor_go,LOW);
+  digitalWrite(Left_motor_back,HIGH);
+  analogWrite(Left_motor_go,0); 
+  analogWrite(Left_motor_back,175);
+  breakToStart=1; //followed by 'push to start'
+  digitalWrite(LEDBlue,LOW);
+  delay(15);
+}
+//Method for U turn. (left motor -125, right motor 125 for ‘time’ peroid)
+//'U turn'
+void spin_left(int time)         
+{
+  digitalWrite(LEDBlue,HIGH);
+  digitalWrite(LEDGreen,HIGH);
+  digitalWrite(LEDRed,HIGH);
+  digitalWrite(beep,HIGH);
+  digitalWrite(Right_motor_go,HIGH);
+  digitalWrite(Right_motor_back,LOW);
+  analogWrite(Right_motor_go,125); 
+  analogWrite(Right_motor_back,0);
+  digitalWrite(Left_motor_go,LOW); 
+  digitalWrite(Left_motor_back,HIGH);
+  analogWrite(Left_motor_go,0); 
+  analogWrite(Left_motor_back,125);
+  //stop beeping and stop motors
+  digitalWrite(beep,LOW); 
+  digitalWrite(Right_motor_go,LOW);
+  digitalWrite(Left_motor_back,LOW);
+  breakToStart=1; //followed by 'push to start'
+  digitalWrite(LEDBlue,LOW);
+  digitalWrite(LEDGreen,LOW);
+  digitalWrite(LEDRed,LOW);
+}
+//Method for right turn. (right motor -125, left motor 125 and red LED on)
+//turn right
+void right()
+{
+  digitalWrite(LEDRed,HIGH);
+  analogWrite(LEDRed,225);
+  brake();
+  //right motor moves backward
+  digitalWrite(Right_motor_go,LOW);
+  digitalWrite(Right_motor_back,HIGH);
+  analogWrite(Right_motor_go,0); 
+  analogWrite(Right_motor_back,175);
+  //left motor moves forward
+  digitalWrite(Left_motor_go,HIGH);
+  digitalWrite(Left_motor_back,LOW);
+  analogWrite(Left_motor_go,155); 
+  analogWrite(Left_motor_back,0);
+  breakToStart=1; //followed by 'push to start'
+  digitalWrite(LEDRed,LOW);
+  delay(15);
+}
+//Method for button press
+void keysacn()
+{
+  int val;
+  val=digitalRead(key);
+  while(!digitalRead(key))
+  {
+    val=digitalRead(key);
+  }
+  while(digitalRead(key))
+  {
+    delay(10); 
+    val=digitalRead(key);
+    if(val==HIGH)
+    {
+      digitalWrite(beep,HIGH);
+      while(!digitalRead(key))
+        digitalWrite(beep,LOW);
+    }
+    else
+      digitalWrite(beep,LOW);
+  }
+}
+//Method for distance detection
+//distance test
+void Distance_test() 
+{
+  digitalWrite(Trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(Trig, HIGH);
+  delayMicroseconds(2);
+  digitalWrite(Trig, LOW);
+  float Fdistance = pulseIn(Echo, HIGH);
+  Fdistance= Fdistance/58;
+  Distance = Fdistance;
+}
+//Main method
+//-turn on LEDs one by one then turn them off
+//-detect button press to start running
+//-moving forward/turn left/turn right/U turn based on input values
+void loop()
+{ 
+  digitalWrite(LEDRed,HIGH); //turn on indicator light
+  delay(500);
+  digitalWrite(LEDGreen,HIGH); //turn on indicator light
+  delay(500);
+  digitalWrite(LEDBlue,HIGH); //turn on indicator light
+  delay(500);
+  digitalWrite(LEDRed,LOW);
+  digitalWrite(LEDGreen,LOW);
+  digitalWrite(LEDBlue,LOW);
+  keysacn();
+  while(1)
+  {
+    /*If the battery voltage is higher than what we used (6.4V)
+     * one can comment out 'Distance=11' line and un-comment
+     * 'Distance_test()' to let the robot make a 'U-Turn' when 
+     * it is facing a obstacle. 
+     * For the voltage we use (6.4v) is not enough for Ultrasound
+     * distence sensor (The robot car will move too slow and 
+     * eventually stop).
+     * Also, if increase the voltage, one should lower the speed
+     * of the robot car in 'run()' method. 
+     */
+    //Distance_test();
+    Distance = 11;
+    SR = digitalRead(SensorRight);
+    SL = digitalRead(SensorLeft);
+    //make U turn
+    if((Distance < 10)){ 
+        spin_left(4);
+        brake();
+    }
+    else
+    {
+      if (SL == HIGH&&SR==HIGH){
+        //if 'push to start' is needed
+        if (breakToStart == 1)
+          start_run();
+        else
+          run();
+       }
+      else if (SL == HIGH & SR == LOW) 
+                right();
+      else if (SR == HIGH & SL == LOW)
+                left();
+      else
+        run();
+    }
+  }
+}
